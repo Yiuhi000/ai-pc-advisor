@@ -72,9 +72,15 @@ def select_optimal_cooler(coolers_list: List[Dict], cpu: Dict, budget: int = 0, 
     # 1. CPU mát (TDP <= 65W) và không phải dòng ép xung K/X3D:
     # Cấm chọn tản quá đắt (giới hạn giá <= 700.000 VNĐ).
     if cpu_tdp <= 65 and not is_k_or_x3d:
+        is_mid_high_cpu = (
+            cpu.get("price", 0) >= 4_500_000
+            or cpu.get("score", 0) >= 18_000
+            or cpu.get("cores", 0) >= 10
+            or any(k in cpu_name for k in ["13500", "13600", "14500", "14600", "12700", "10700"])
+        )
         need_aftermarket = (
             (usage == "Gaming" and budget >= 16_000_000)
-            or (usage == "Văn phòng / Học tập" and budget > 22_000_000)
+            or (usage == "Văn phòng / Học tập" and (budget > 22_000_000 or (budget >= 13_000_000 and is_mid_high_cpu)))
             or (("TẤT CẢ" in usage.upper() or "ĐA DỤNG" in usage.upper()) and budget >= 20_000_000)
             or (("ĐỒ HỌA" in usage.upper() or "AI" in usage.upper()) and budget >= 18_000_000)
         )
@@ -795,6 +801,12 @@ class BranchAndBoundOptimizer:
         # QUY TẮC LƯU TRỮ SSD VÀ PHỐI HỢP HDD THEO NHU CẦU
         # ---------------------------------------------------------------------
         if "storage" not in locked_parts:
+            # Siết luật R11: Với mọi cấu hình có ngân sách >= 12 triệu, bắt buộc ưu tiên SSD chuẩn NVMe
+            if budget >= 12_000_000:
+                nvme_storages = [s for s in all_storages if s.get("type") == "NVMe"]
+                if nvme_storages:
+                    all_storages = nvme_storages
+
             if usage in ["Gaming", "Đồ họa / Lập trình AI"]:
                 # Gaming và Lập trình AI: Luôn ưu tiên chọn SSD dung lượng lớn (1TB - 2TB NVMe)
                 if budget < 18_000_000:
@@ -944,6 +956,12 @@ class BranchAndBoundOptimizer:
                     ]
                     if budget >= 18_000_000:
                         valid_mbs = [mb for mb in valid_mbs if not is_pcie3_mainboard(mb)]
+                    # Luật 4: Tránh để Mainboard chiếm quá ~22% tổng ngân sách ở hồ sơ Văn phòng
+                    if usage == "Văn phòng / Học tập" and "mainboard" not in locked_parts and budget > 0:
+                        max_mb_price = int(budget * 0.22)
+                        sensible_mbs = [mb for mb in valid_mbs if mb.get("price", 0) <= max_mb_price]
+                        if sensible_mbs:
+                            valid_mbs = sensible_mbs
                 if not valid_mbs:
                     stats.pruned_branches += 1
                     return
@@ -1067,6 +1085,14 @@ class BranchAndBoundOptimizer:
                         gold_psus = [p for p in valid_psus if "Gold" in p.get("efficiency", "") or "Platinum" in p.get("efficiency", "")]
                         if gold_psus:
                             valid_psus = gold_psus
+
+                    # Luật 2: Chặn lãng phí công suất Nguồn khi không dùng VGA rời
+                    if (gpu["id"] == "gpu_none" or not is_discrete_gpu) and "psu" not in locked_parts:
+                        sensible_psus = [p for p in valid_psus if p.get("wattage", 0) <= 550 and p.get("price", 0) <= 1_100_000]
+                        if not sensible_psus:
+                            sensible_psus = [p for p in valid_psus if p.get("wattage", 0) <= 550]
+                        if sensible_psus:
+                            valid_psus = sensible_psus
 
                 if not valid_psus:
                     stats.pruned_branches += 1

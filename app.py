@@ -541,6 +541,276 @@ else:
     }
     """
 
+COMMON_CSS += """
+/* Thanh tiêu đề bảng linh kiện */
+.table-header-bar {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-sub);
+}
+.table-header-bar .th-cat { flex: 1.75; }
+.table-header-bar .th-name { flex: 3.35; }
+.table-header-bar .th-qty { flex: 1.05; text-align: center; }
+.table-header-bar .th-price { flex: 1.45; text-align: right; }
+.table-header-bar .th-act { flex: 1.4; text-align: center; }
+.mobile-qty-lbl { display: none; }
+
+/* ==========================================================================
+   TỐI ƯU HÓA GIAO DIỆN CHO THIẾT BỊ DI ĐỘNG (MOBILE RESPONSIVE CSS)
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* 1. Giảm khoảng đệm lãng phí của Streamlit container trên điện thoại */
+    .main .block-container {
+        padding-left: 0.65rem !important;
+        padding-right: 0.65rem !important;
+        padding-top: 0.5rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 100% !important;
+    }
+
+    /* 2. Header & Thanh điều hướng trên cùng */
+    div[data-testid="stHorizontalBlock"]:has(.top-header-left) {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 14px !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.top-header-left) > div[data-testid="stColumn"] {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.top-header-left) > div[data-testid="stColumn"]:first-child {
+        height: auto !important;
+        min-height: 58px !important;
+        margin-bottom: 10px !important;
+    }
+    .top-header-left {
+        gap: 8px !important;
+        margin-bottom: 0px !important;
+    }
+    .top-logo-box {
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+    }
+    .top-app-title {
+        font-size: 1.15rem !important;
+        line-height: 1.25 !important;
+    }
+    .top-app-subtitle {
+        font-size: 0.76rem !important;
+        line-height: 1.3 !important;
+        margin-bottom: 4px !important;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* 3. Hero Banner co giãn mượt trên màn hình nhỏ */
+    .hero-banner {
+        padding: 16px 14px !important;
+        min-height: auto !important;
+        border-radius: 12px !important;
+        margin-bottom: 12px !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    .hero-title {
+        font-size: 1.18rem !important;
+        line-height: 1.3 !important;
+    }
+    .hero-subtitle {
+        font-size: 0.78rem !important;
+        line-height: 1.35 !important;
+        margin-top: 4px !important;
+    }
+    .hero-badge {
+        position: relative !important;
+        right: auto !important;
+        bottom: auto !important;
+        margin-top: 10px !important;
+        align-self: flex-start !important;
+        font-size: 0.76rem !important;
+        padding: 4px 10px !important;
+    }
+
+    /* 4. Tabs co giãn mượt, cuộn ngang cảm ứng mượt mà */
+    div[data-baseweb="tab-list"] {
+        gap: 4px !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding-bottom: 4px !important;
+    }
+    div[data-baseweb="tab-list"] button {
+        font-size: 0.86rem !important;
+        padding: 8px 12px !important;
+        white-space: nowrap !important;
+    }
+
+    /* 5. Cụm điều khiển Ngân sách, Nhu cầu, Tùy chọn chuyển thành cột dọc full-width */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.auto-complete-btn-wrap) div[data-testid="stHorizontalBlock"]:first-child {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.auto-complete-btn-wrap) div[data-testid="stHorizontalBlock"]:first-child > div[data-testid="stColumn"] {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+    .auto-complete-btn-wrap button,
+    .reset-btn-wrap button {
+        height: 42px !important;
+        font-size: 0.92rem !important;
+    }
+
+    /* 6. Bảng danh sách 9 linh kiện: Chuyển sang dạng Thẻ thông minh (Mobile Card) */
+    .table-header-bar {
+        display: none !important;
+    }
+    .table-header-wrap {
+        display: none !important;
+    }
+    .parts-table-hr {
+        display: none !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_dlg_open_"]) {
+        display: grid !important;
+        grid-template-columns: 1fr auto !important;
+        grid-template-areas:
+            "cat price"
+            "name name"
+            "qty action" !important;
+        gap: 6px 8px !important;
+        padding: 10px 10px !important;
+        margin-bottom: 8px !important;
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-card) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    /* Hàng 1 trái: Danh mục */
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_dlg_open_"]) > div[data-testid="stColumn"]:nth-child(1) {
+        grid-area: cat !important;
+        width: auto !important;
+        min-width: 0 !important;
+        align-self: center !important;
+    }
+
+    /* Hàng 1 phải: Thành tiền */
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_dlg_open_"]) > div[data-testid="stColumn"]:nth-child(4) {
+        grid-area: price !important;
+        width: auto !important;
+        min-width: 0 !important;
+        text-align: right !important;
+        align-self: center !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_dlg_open_"]) > div[data-testid="stColumn"]:nth-child(4) > div {
+        text-align: right !important;
+    }
+
+    /* Hàng 2: Tên sản phẩm & Spec Badges (trải dài full width) */
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_dlg_open_"]) > div[data-testid="stColumn"]:nth-child(2) {
+        grid-area: name !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 2px 0 !important;
+    }
+
+    /* Hàng 3 trái: Cột số lượng (SL) */
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_dlg_open_"]) > div[data-testid="stColumn"]:nth-child(3) {
+        grid-area: qty !important;
+        width: auto !important;
+        min-width: 72px !important;
+        max-width: 90px !important;
+        align-self: center !important;
+    }
+    .mobile-qty-lbl {
+        display: inline !important;
+        font-size: 0.85rem !important;
+        color: var(--text-sub) !important;
+    }
+
+    /* Hàng 3 phải: Cụm nút Thao tác (Đổi / Chọn + X) */
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_dlg_open_"]) > div[data-testid="stColumn"]:nth-child(5) {
+        grid-area: action !important;
+        width: auto !important;
+        min-width: 120px !important;
+        align-self: center !important;
+    }
+
+    /* 7. Khung Chat Tư vấn AI trên điện thoại */
+    .chat-msg-user {
+        max-width: 88% !important;
+        font-size: 13.5px !important;
+        padding: 8px 12px !important;
+    }
+    .chat-msg-ai {
+        max-width: 92% !important;
+        font-size: 13.5px !important;
+        padding: 10px 12px !important;
+    }
+    .chat-msg-user *, .chat-msg-ai * {
+        font-size: 13.5px !important;
+    }
+    .chat-ai-avatar {
+        width: 28px !important;
+        height: 28px !important;
+    }
+    .chat-msg-ai-row {
+        gap: 6px !important;
+    }
+
+    /* 8. Cửa sổ Popup Modal (Dialog chọn linh kiện) trên điện thoại */
+    div[role="dialog"] {
+        width: 96vw !important;
+        max-width: 96vw !important;
+        padding: 12px !important;
+    }
+    div[role="dialog"] div[data-testid="stHorizontalBlock"]:has(input[placeholder*="Nhập tên"]) {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    div[role="dialog"] div[data-testid="stHorizontalBlock"]:has(input[placeholder*="Nhập tên"]) > div[data-testid="stColumn"] {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+    div[role="dialog"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    div[role="dialog"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stColumn"] {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* 9. Thẻ tổng kết cấu hình & Nút tải CSV/PDF */
+    .total-price-display {
+        font-size: 1.85rem !important;
+    }
+    .csv-dl-wrap button,
+    .html-dl-wrap button {
+        height: 40px !important;
+        font-size: 0.88rem !important;
+    }
+
+    /* 10. Tối ưu touch-target cho màn hình cảm ứng điện thoại */
+    button, input, select {
+        touch-action: manipulation;
+    }
+}
+"""
+
 LIGHT_THEME_CSS = """
 /* Hero badge trong Light Mode */
 .hero-badge {
@@ -1632,7 +1902,7 @@ with head_c_left:
             </div>
             <div>
                 <div class="top-app-title">AI PC Builder Advisor</div>
-                <div class="top-app-subtitle">Hệ thống tư vấn và xây dựng cấu hình máy tính theo đúng Trí tuệ Nhân tạo</div>
+                <div class="top-app-subtitle">Hệ thống tư vấn &amp; tối ưu cấu hình PC bằng Trí tuệ Nhân tạo</div>
             </div>
         </div>
         """,
@@ -1922,21 +2192,18 @@ with tab_build:
                 help="Bật: Popup chỉ hiển thị linh kiện tương thích với lựa chọn hiện tại. Tắt: hiển thị toàn bộ để thử nghiệm phát hiện xung đột.",
             )
 
-        # Tiêu đề bảng sản phẩm
-        st.markdown('<div class="table-header-wrap">', unsafe_allow_html=True)
-        h_col1, h_col2, h_col3, h_col4, h_col5 = st.columns([1.75, 3.35, 1.05, 1.45, 1.4], gap="small")
-        with h_col1:
-            st.markdown("<span style='font-size:0.92rem; font-weight:700; color:var(--text-sub);'>Danh mục</span>", unsafe_allow_html=True)
-        with h_col2:
-            st.markdown("<span style='font-size:0.92rem; font-weight:700; color:var(--text-sub);'>Linh kiện đã chọn</span>", unsafe_allow_html=True)
-        with h_col3:
-            st.markdown("<span style='font-size:0.92rem; font-weight:700; color:var(--text-sub); display:block; text-align:center;'>SL</span>", unsafe_allow_html=True)
-        with h_col4:
-            st.markdown("<span style='font-size:0.92rem; font-weight:700; color:var(--text-sub); display:block; text-align:right;'>Thành tiền</span>", unsafe_allow_html=True)
-        with h_col5:
-            st.markdown("<span style='font-size:0.92rem; font-weight:700; color:var(--text-sub); display:block; text-align:center;'>Thao tác</span>", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--hr-line);'>", unsafe_allow_html=True)
+        # Tiêu đề bảng sản phẩm (Desktop: hiển thị thanh tiêu đề chuẩn; Mobile: tự động ẩn gọn gàng)
+        st.markdown(
+            """<div class="table-header-bar">
+                <div class="th-cat">Danh mục</div>
+                <div class="th-name">Linh kiện đã chọn</div>
+                <div class="th-qty">SL</div>
+                <div class="th-price">Thành tiền</div>
+                <div class="th-act">Thao tác</div>
+            </div>
+            <hr class='parts-table-hr' style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--hr-line);'>""",
+            unsafe_allow_html=True,
+        )
 
         # Render 9 dòng linh kiện
         for cat_name, cat_key, state_key, allows_qty in CATEGORIES:
@@ -1985,7 +2252,7 @@ with tab_build:
                         st.session_state[f"qty_{cat_key}"] = q_val
                         st.rerun()
                 else:
-                    st.markdown("<div style='text-align: center; color: var(--text-sub); font-weight: 600; padding-top: 4px; font-size: 0.95rem;'>1</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='text-align: center; color: var(--text-sub); font-weight: 600; padding-top: 4px; font-size: 0.95rem;'><span class='mobile-qty-lbl'>SL: </span>1</div>", unsafe_allow_html=True)
                     st.session_state[f"qty_{cat_key}"] = 1
 
             with r_c4:
@@ -2012,7 +2279,7 @@ with tab_build:
                             st.session_state[f"qty_{cat_key}"] = 1
                             st.rerun()
 
-            st.markdown("<hr style='margin: 4px 0 6px 0; border: none; border-top: 1px solid var(--hr-line);'>", unsafe_allow_html=True)
+            st.markdown("<hr class='parts-table-hr' style='margin: 4px 0 6px 0; border: none; border-top: 1px solid var(--hr-line);'>", unsafe_allow_html=True)
 
         # Mở popup dialog nếu người dùng vừa bấm nút Chọn/Đổi
         if st.session_state.opened_dialog:

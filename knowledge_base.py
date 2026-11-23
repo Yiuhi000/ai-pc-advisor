@@ -100,6 +100,14 @@ RULES: List[Dict[str, str]] = [
         "action_desc": "Bắt buộc tản nhiệt phải có tdp_support >= CPU.tdp. CPU có TDP > 65W không được sử dụng tản nhiệt mặc định (stock).",
         "logic_expr": "Cooler.tdp_support >= CPU.tdp (và CPU.tdp <= 65W nếu dùng cooler_stock)",
     },
+    {
+        "rule_id": "R11",
+        "name": "Ưu tiên SSD chuẩn NVMe cho phân khúc từ 12 triệu trở lên",
+        "category": "Soft",
+        "condition_desc": "Ngân sách từ 12 triệu trở lên hoặc hệ thống đã có HDD phụ để lưu trữ dữ liệu lớn",
+        "action_desc": "Bắt buộc ưu tiên SSD chuẩn NVMe tốc độ cao thay vì SSD SATA để tối ưu tốc độ đọc ghi, phản hồi ứng dụng và sao chép dữ liệu.",
+        "logic_expr": "Budget >= 12_000_000 hoặc has_hdd => Storage.type == 'NVMe'",
+    },
 ]
 
 # ===========================================================================
@@ -602,6 +610,16 @@ def compute_storage_norm(
     """
     storage_cap = storage.get("capacity_gb", 256)
     hdd_cap = hdd.get("capacity_gb", 0) if (hdd and need_hdd) else 0
+    st_type = storage.get("type", "NVMe")
+    is_sata = (st_type == "SATA")
+
+    # Luật R11: Siết ưu tiên SSD NVMe khi budget >= 12.000.000 VNĐ hoặc có HDD
+    nvme_mod = 0.0
+    if budget >= 12_000_000 or (need_hdd and hdd and hdd.get("id") != "hdd_none"):
+        if is_sata:
+            nvme_mod = -40.0
+        else:
+            nvme_mod = 10.0
 
     if usage in ["Gaming", "Đồ họa / Lập trình AI"]:
         # Gaming & AI: Luôn ưu tiên SSD dung lượng cao
@@ -617,33 +635,37 @@ def compute_storage_norm(
         if need_hdd and hdd_cap > 0:
             # Nếu HDD cỡ ~1/3 hoặc nhỏ hơn SSD (hdd_cap <= storage_cap * 0.6): thưởng điểm tỷ lệ chuẩn
             if hdd_cap <= storage_cap * 0.6:
-                return min(100.0, ssd_score + 10.0)
+                return min(100.0, max(5.0, round(ssd_score + 10.0 + nvme_mod, 2)))
             else:
                 # Nếu HDD lớn lấn át SSD: trừ điểm nặng vì sai tôn chỉ ưu tiên SSD của Gaming/AI
-                return max(5.0, ssd_score - 30.0)
-        return ssd_score
+                return min(100.0, max(5.0, round(ssd_score - 30.0 + nvme_mod, 2)))
+        return min(100.0, max(5.0, round(ssd_score + nvme_mod, 2)))
 
     elif usage == "Tất cả / Đa dụng (Cân bằng)":
         if need_hdd and hdd_cap > 0:
             # Tỷ lệ 50/50: SSD và HDD tương đương nhau
             ratio = min(storage_cap, hdd_cap) / max(storage_cap, hdd_cap)
             base_score = min(100.0, (storage_cap / 1000.0) * 80.0 + 20.0)
-            return round(base_score * ratio, 2)
+            return min(100.0, max(5.0, round(base_score * ratio + nvme_mod, 2)))
         else:
             target_cap = 1000 if budget <= 28_000_000 else 2000
-            return min(100.0, (storage_cap / float(target_cap)) * 100.0)
+            base_score = min(100.0, (storage_cap / float(target_cap)) * 100.0)
+            return min(100.0, max(5.0, round(base_score + nvme_mod, 2)))
 
-    else:  # Văn phòng / Học tập (Giữ nguyên)
+    else:  # Văn phòng / Học tập
         if need_hdd:
             if storage_cap <= 512:
-                return min(100.0, (storage_cap / 512.0) * 100.0)
+                base_score = min(100.0, (storage_cap / 512.0) * 100.0)
             else:
                 if budget > 30_000_000 and storage_cap == 1000:
-                    return 100.0
-                return 90.0
+                    base_score = 100.0
+                else:
+                    base_score = 90.0
+            return min(100.0, max(5.0, round(base_score + nvme_mod, 2)))
         else:
             target_cap = 1000 if budget < 28_000_000 else 2000
-            return min(100.0, (storage_cap / float(target_cap)) * 100.0)
+            base_score = min(100.0, (storage_cap / float(target_cap)) * 100.0)
+            return min(100.0, max(5.0, round(base_score + nvme_mod, 2)))
 
 
 def filter_gpus_by_budget_floor(
@@ -770,6 +792,8 @@ def compute_durability_norm(
     cooler: Optional[Dict] = None,
     usage: str = "",
     budget: int = 0,
+    gpu: Optional[Dict] = None,
+    cpu: Optional[Dict] = None,
 ) -> float:
     """Tính điểm chuẩn hóa chất lượng phần cứng kèm theo (Mainboard, PSU, Case, Cooler)."""
     if not mainboard and not psu and not case and not cooler:
@@ -778,7 +802,11 @@ def compute_durability_norm(
     scores = []
     if mainboard:
         mb_name = mainboard.get("name", "").upper()
-        if any(c in mb_name for c in ["Z790", "Z890", "X670", "X570"]):
+        mb_price = mainboard.get("price", 0)
+        # Luật 4: Tránh để Mainboard chiếm quá ~22% tổng ngân sách ở hồ sơ Văn phòng
+        if usage == "Văn phòng / Học tập" and budget > 0 and mb_price > budget * 0.22:
+            scores.append(65.0)
+        elif any(c in mb_name for c in ["Z790", "Z890", "X670", "X570"]):
             scores.append(100.0)
         elif any(c in mb_name for c in ["B760", "B650", "B550", "B660"]):
             scores.append(90.0)
@@ -789,7 +817,15 @@ def compute_durability_norm(
 
     if psu:
         eff = psu.get("efficiency", "")
-        if "Gold" in eff or "Platinum" in eff:
+        psu_watt = psu.get("wattage", 0)
+        psu_price = psu.get("price", 0)
+        # Luật 2: Chặn lãng phí công suất Nguồn (PSU) khi không dùng VGA rời
+        is_no_gpu = (gpu is not None and gpu.get("id") == "gpu_none") or (
+            usage == "Văn phòng / Học tập" and (not gpu or gpu.get("id") == "gpu_none")
+        )
+        if is_no_gpu and (psu_watt >= 600 or psu_price > 1_100_000):
+            scores.append(50.0)  # Phạt nặng nguồn thừa thãi khi không có VGA rời
+        elif "Gold" in eff or "Platinum" in eff:
             scores.append(100.0)
         elif "Bronze" in eff:
             scores.append(85.0)
@@ -807,8 +843,27 @@ def compute_durability_norm(
 
     if cooler:
         cid = cooler.get("id", "")
+        cprice = cooler.get("price", 0)
         tdp_sup = cooler.get("tdp_support", 0)
-        if cid != "cooler_stock" and tdp_sup >= 200:
+        is_office_mid_cpu = (
+            usage == "Văn phòng / Học tập"
+            and budget >= 13_000_000
+            and cpu is not None
+            and (
+                cpu.get("price", 0) >= 4_500_000
+                or cpu.get("score", 0) >= 18_000
+                or cpu.get("cores", 0) >= 10
+                or any(k in cpu.get("name", "").upper() for k in ["13500", "13600", "14500", "14600", "12700", "10700"])
+            )
+        )
+        if is_office_mid_cpu:
+            if cid == "cooler_stock":
+                scores.append(40.0)  # Trừ điểm tản Stock 0đ khi CPU tầm trung / ngân sách từ 13M
+            elif cprice <= 800_000:
+                scores.append(100.0)  # Thưởng tối đa cho tản khí rời phổ thông (400k-700k) êm ái
+            else:
+                scores.append(85.0)
+        elif cid != "cooler_stock" and tdp_sup >= 200:
             scores.append(100.0)
         elif cid != "cooler_stock":
             scores.append(90.0)
@@ -874,7 +929,14 @@ def compute_fitness_score(
 
     # 5. Điểm Độ bền & Linh kiện kèm theo (Main, PSU, Case, Cooler)
     durability_norm = compute_durability_norm(
-        mainboard=mainboard, psu=psu, case=case, cooler=cooler, usage=usage, budget=budget
+        mainboard=mainboard,
+        psu=psu,
+        case=case,
+        cooler=cooler,
+        usage=usage,
+        budget=budget,
+        gpu=gpu,
+        cpu=cpu,
     )
 
     # Phân bổ trọng số
@@ -938,6 +1000,7 @@ def validate_full_build(
     hdd: Optional[Dict] = None,
     ram_qty: int = 1,
     extra_storage_count: int = 0,
+    budget: int = 0,
 ) -> Tuple[List[str], List[str]]:
     """Kiểm tra toàn bộ ràng buộc cứng và mềm cho cấu hình hoàn chỉnh."""
     errors: List[str] = []
@@ -995,12 +1058,12 @@ def validate_full_build(
     if not is_balanced:
         warnings.append(bt_msg)
 
-    # Kiểm tra luật mềm lưu trữ HDD/SSD
-    if hdd is not None and hdd.get("id") != "hdd_none":
-        if storage.get("type") == "SATA":
+    # Kiểm tra luật mềm lưu trữ HDD/SSD và ngân sách từ 12 triệu (Luật R11)
+    if storage.get("type") == "SATA":
+        if (hdd is not None and hdd.get("id") != "hdd_none") or budget >= 12_000_000:
             warnings.append(
-                f"[R11] Khuyen nghi luu tru: He thong su dung SSD SATA '{storage['name']}'. "
-                f"Nen uu tien SSD NVMe toc do cao khi da co HDD '{hdd['name']}' luu tru du lieu lon."
+                f"[R11] Khuyến nghị lưu trữ: Hệ thống sử dụng SSD SATA '{storage['name']}'. "
+                f"Nên ưu tiên SSD chuẩn NVMe tốc độ cao hơn cho cấu hình từ 12 triệu hoặc khi đã có HDD lưu trữ."
             )
 
     return errors, warnings
